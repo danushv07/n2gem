@@ -2,6 +2,7 @@ import numpy as np
 import h5py as h5
 import torch
 import faiss
+import faiss.contrib.torch_utils # needed to build tree using torch tensors
 
 def build_tree(indextype,
           # ntrees,
@@ -74,7 +75,7 @@ DEVICE_STRING = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 GLOBAL_DEVICE = torch.device(DEVICE_STRING)
 
 
-def build_tree_scratch(file, input_name, output_file, nsamples, seed=42):
+def build_tree_gem(file, input_name, output_file, nsamples, seed=42):
     """
     Build a faiss tree
     
@@ -101,6 +102,10 @@ def build_tree_scratch(file, input_name, output_file, nsamples, seed=42):
     """
     np.random.seed(seed)
     
+    # get & print the no. of gpus
+    ngpus = faiss.get_num_gpus()
+    #print("number of gpus: ", ngpus)
+    
     print(f">> running in {GLOBAL_DEVICE}")
     input_file = h5.File(file, "r")
     
@@ -117,6 +122,17 @@ def build_tree_scratch(file, input_name, output_file, nsamples, seed=42):
     
     # build the tree
     index = faiss.IndexFlatL2(dataset.shape[-1])
-    index.add(dataset[:total_samples,:])
+    gpu_resource = faiss.StandardGpuResources() # declare a gpu memory
     
-    faiss.write_index(index, str(output_file))
+    if 'cuda' in DEVICE_STRING:
+        if not ngpus > 1:
+            index_tree = faiss.index_cpu_to_gpu(gpu_resource, 0, index) # single gpu
+        else:
+            index_tree = faiss.index_cpu_to_all_gpus(index) # multiple gpus
+        
+        index_tree.add(dataset[:total_samples, :])
+    
+    else:
+        index.add(dataset[:total_samples, :])
+        
+    #faiss.write_index(index, str(output_file))
