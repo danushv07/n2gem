@@ -1,11 +1,7 @@
-# import libraries
 import numpy as np
 import h5py as h5
 import torch
-
 import faiss
-
-
 
 def build_tree(indextype,
           # ntrees,
@@ -72,3 +68,55 @@ def build_tree(indextype,
 
 
 
+
+# the device to use
+DEVICE_STRING = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+GLOBAL_DEVICE = torch.device(DEVICE_STRING)
+
+
+def build_tree_scratch(file, input_name, output_file, nsamples, seed=42):
+    """
+    Build a faiss tree
+    
+    Parameters
+    -----------------
+    file : TYPE - string
+           DESCRIPTION - the path to hdf5 file containing the train/real samples to build tree
+                          size:(n_samples, n_dimensions)
+             
+    input_name : TYPE - string
+                 DESCRIPTION - name of the variable in the file
+    
+    output_file : TYPE - string
+                  DESCRIPTION - the path to store the tree(s)
+    
+    nsamples : TYPE - integer
+                    DESCRIPTION - number of samples to be considered for building the tree
+    
+    seed : TYPE - integer
+           DESCRIPTION - the seed for the generator
+                         default = 42
+    
+    
+    """
+    np.random.seed(seed)
+    
+    print(f">> running in {GLOBAL_DEVICE}")
+    input_file = h5.File(file, "r")
+    
+    try:
+        data_for_tree = input_file[input_name] if input_name in input_file.keys() else None
+    except:
+        print(f"{input_name} not found in {file}. Exiting.")
+        return 1
+    
+    dataset = torch.from_numpy(np.asarray(data_for_tree).astype(np.float32)).to(GLOBAL_DEVICE)
+    #print(dataset.shape)
+    
+    total_samples = dataset.shape[0] if (nsamples < 0 or nsamples > dataset.shape[0]) else nsamples
+    
+    # build the tree
+    index = faiss.IndexFlatL2(dataset.shape[-1])
+    index.add(dataset[:total_samples,:])
+    
+    faiss.write_index(index, str(output_file))
