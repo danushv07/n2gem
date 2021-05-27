@@ -3,6 +3,7 @@ import h5py as h5
 import torch
 import faiss
 import faiss.contrib.torch_utils # needed to build tree using torch tensors
+import time
 
 def build_tree(indextype,
           # ntrees,
@@ -75,22 +76,15 @@ DEVICE_STRING = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 GLOBAL_DEVICE = torch.device(DEVICE_STRING)
 
 
-def build_tree_gem(file, input_name, output_file, nsamples, index_type='indexflatl2', n_cells=100, seed=42):
+def build_tree_gem(train_samples, nsamples, index_type='indexflatl2', n_cells=100, seed=42):
     """
     Build a faiss tree
     
     Parameters
     -----------------
-    file : TYPE - string
-           DESCRIPTION - the path to hdf5 file containing the train/real samples to build tree
-                          size:(n_samples, n_dimensions)
-             
-    input_name : TYPE - string
-                 DESCRIPTION - name of the variable in the file
-    
-    output_file : TYPE - string
-                  DESCRIPTION - the path to store the tree(s)
-    
+    train_samples : TYPE - numpy array of N real samples of dimensionality D,
+                    DESCRIPTION - shape should be (N,D)
+                    
     nsamples : TYPE - integer
                DESCRIPTION - number of samples to be considered for building the tree
     
@@ -105,6 +99,9 @@ def build_tree_gem(file, input_name, output_file, nsamples, index_type='indexfla
            DESCRIPTION - the seed for the generator
                          default = 42
     
+    Return
+    ------------------
+    tree : TYPE - faiss tree of the specified index type
     
     """
     np.random.seed(seed)
@@ -113,18 +110,20 @@ def build_tree_gem(file, input_name, output_file, nsamples, index_type='indexfla
     ngpus = faiss.get_num_gpus()
     #print("number of gpus: ", ngpus)
     
-    print(f"The tree is created using {GLOBAL_DEVICE}")
-    input_file = h5.File(file, "r")
+    print(f"The tree is created on the dataset of shape {train_samples.shape} using {GLOBAL_DEVICE}")
+    #input_file = h5.File(file, "r")
     
-    try:
-        data_for_tree = input_file[input_name] if input_name in input_file.keys() else None
-    except:
-        print(f"{input_name} not found in {file}. Exiting.")
-        return 1
+    #try:
+    #    data_for_tree = input_file[input_name] if input_name in input_file.keys() else None
+    #except:
+    #    print(f"{input_name} not found in {file}. Exiting.")
+    #    return 1
     
-    dataset = torch.from_numpy(np.asarray(data_for_tree).astype(np.float32)).to(GLOBAL_DEVICE)
+    
+    #dataset = torch.from_numpy(np.asarray(train_samples).astype(np.float32)).to(GLOBAL_DEVICE)
     #print(dataset.shape)
     
+    dataset = train_samples.to(GLOBAL_DEVICE)
     total_samples = dataset.shape[0] if (nsamples < 0 or nsamples > dataset.shape[0]) else nsamples
     
     # build the tree
@@ -134,7 +133,7 @@ def build_tree_gem(file, input_name, output_file, nsamples, index_type='indexfla
     # indexflatl2 in gpu
     if ('cuda' in DEVICE_STRING) and (index_type == 'indexflatl2'):
         if not ngpus > 1:
-            index_tree = faiss.index_cpu_to_gpu(res, 0, index)
+            index_tree = faiss.index_cpu_to_gpu(gpu_resource, 0, index)
         else:
             index_tree = faiss.index_cpu_to_all_gpus(index)
         
@@ -143,7 +142,8 @@ def build_tree_gem(file, input_name, output_file, nsamples, index_type='indexfla
         delta_time = time.time() - start_time
         print(f"Creating the tree by {index_type} took {delta_time:.5f} sec")
         
-        faiss.write_index(index_tree, str(output_file))
+        return index
+        #faiss.write_index(index_tree, str(output_file))
     
     
     # indexivfflat in cpu
@@ -155,8 +155,9 @@ def build_tree_gem(file, input_name, output_file, nsamples, index_type='indexfla
         flat_index.add(dataset[:total_samples, :])
         delta_time = time.time() - start_time
         print(f"Creating the tree by {index_type} using {n_cells} cells took {delta_time:.5f} sec.") 
-    
-        faiss.write_index(flat_index, str(output_file))
+        
+        return flat_index
+        #faiss.write_index(flat_index, str(output_file))
       
     # indexflatl2 in cpu
     else:
@@ -164,5 +165,6 @@ def build_tree_gem(file, input_name, output_file, nsamples, index_type='indexfla
         index.add(dataset[:total_samples, :])
         delta_time = time.time() - start_time
         print(f"Creating the tree by {index_type} took {delta_time:.5f} sec")
-        faiss.write_index(index, str(output_file))
+        return index
+        #faiss.write_index(index, str(output_file))
     
