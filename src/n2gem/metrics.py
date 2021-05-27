@@ -6,6 +6,7 @@ import torch
 import numpy as np
 from scipy.spatial.distance import cdist
 
+from aux_funcs import build_tree_gem
 """
 Reliable Fidelity and Diversity Metrics for Generative Models (ICML 2020,
 https://arxiv.org/abs/2002.09797) implemented using faiss similarity search
@@ -155,3 +156,51 @@ def coverage_(real_tree, real_samples, gen_samples, nk=5):
 
     return value
 
+def gem_density(real_samples, no_samples, gen_samples, nk=5):
+    """ implemeting density from the prcd paper, 2002.09797
+    Density counts how many real-sample neighbourhood spheres contain generate samples.
+    This implementation uses torch as numerical API
+
+    input parameters:
+    -----------------
+    real_samples : TYPE - numpy array of N real samples of dimensionality D,
+                    DESCRIPTION - shape should be (N,D)
+                    
+    no_samples : nsamples : TYPE - integer
+               DESCRIPTION - number of samples to be considered for building the tree
+               
+    gen_samples  : TYPE - numpy array of N generated samples of dimensionality D,
+                    DESCRIPTION - shape should be (N,D)
+
+    output parameters:
+    -------------------
+    density :: single float within [0, inf)
+    """
+    
+    # convert from numpy to torch tensors
+    real_samples = torch.from_numpy(real_samples.astype(np.float32))
+    gen_samples = torch.from_numpy(gen_samples.astype(np.float32))
+    
+    # build the tree
+    real_tree = build_tree_gem(real_samples, no_samples)
+    
+    real_fake_dists = torch.cdist(real_samples, gen_samples)
+
+    #do a +1 as faiss query results always include the query object itself
+    #at distance 0
+    D, _ = real_tree.search(real_samples, nk+1)
+    real_maxradii, _ = torch.max(torch.sqrt(D), dim=1)
+
+    assert real_maxradii.shape[0] == real_samples.shape[0], f"""
+    shapes don't match {real_maxradii} vs {real_samples.shape}"""
+
+    density_mask = (1. / float(nk)) * (
+            real_fake_dists <
+            real_maxradii.reshape(*real_maxradii.shape, 1)
+    )
+
+    #print("[density_]", density_mask.dtype)
+
+    value = density_mask.sum(dim=0).mean()
+    #print(value)
+    return value
