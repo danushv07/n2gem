@@ -75,7 +75,7 @@ DEVICE_STRING = 'cuda:0' if torch.cuda.is_available() else 'cpu'
 GLOBAL_DEVICE = torch.device(DEVICE_STRING)
 
 
-def build_tree_gem(file, input_name, output_file, nsamples, seed=42):
+def build_tree_gem(file, input_name, output_file, nsamples, index_type='indexflatl2', n_cells=100, seed=42):
     """
     Build a faiss tree
     
@@ -92,8 +92,15 @@ def build_tree_gem(file, input_name, output_file, nsamples, seed=42):
                   DESCRIPTION - the path to store the tree(s)
     
     nsamples : TYPE - integer
-                    DESCRIPTION - number of samples to be considered for building the tree
+               DESCRIPTION - number of samples to be considered for building the tree
     
+    index_type : TYPE - string
+                 DESCRIPTION - the index type to choose from faiss ['indexflatl2', 'indexivfflat']
+                                default - 'indexflatl2'
+    
+    n_cells : TYPE - integer
+              DESCRIPTION - number of voronoi cells
+                              default = 100
     seed : TYPE - integer
            DESCRIPTION - the seed for the generator
                          default = 42
@@ -106,7 +113,7 @@ def build_tree_gem(file, input_name, output_file, nsamples, seed=42):
     ngpus = faiss.get_num_gpus()
     #print("number of gpus: ", ngpus)
     
-    print(f">> running in {GLOBAL_DEVICE}")
+    print(f"The tree is created using {GLOBAL_DEVICE}")
     input_file = h5.File(file, "r")
     
     try:
@@ -124,15 +131,38 @@ def build_tree_gem(file, input_name, output_file, nsamples, seed=42):
     index = faiss.IndexFlatL2(dataset.shape[-1])
     gpu_resource = faiss.StandardGpuResources() # declare a gpu memory
     
-    if 'cuda' in DEVICE_STRING:
+    # indexflatl2 in gpu
+    if ('cuda' in DEVICE_STRING) and (index_type == 'indexflatl2'):
         if not ngpus > 1:
-            index_tree = faiss.index_cpu_to_gpu(gpu_resource, 0, index) # single gpu
+            index_tree = faiss.index_cpu_to_gpu(res, 0, index)
         else:
-            index_tree = faiss.index_cpu_to_all_gpus(index) # multiple gpus
+            index_tree = faiss.index_cpu_to_all_gpus(index)
         
+        start_time = time.time()
         index_tree.add(dataset[:total_samples, :])
-    
-    else:
-        index.add(dataset[:total_samples, :])
+        delta_time = time.time() - start_time
+        print(f"Creating the tree by {index_type} took {delta_time:.5f} sec")
         
-    #faiss.write_index(index, str(output_file))
+        faiss.write_index(index_tree, str(output_file))
+    
+    
+    # indexivfflat in cpu
+    elif index_type == 'indexivfflat':
+        flat_index = faiss.IndexIVFFlat(index, dataset.shape[-1], n_cells)
+        flat_index.train(dataset[:total_samples, :])
+        
+        start_time = time.time()
+        flat_index.add(dataset[:total_samples, :])
+        delta_time = time.time() - start_time
+        print(f"Creating the tree by {index_type} using {n_cells} cells took {delta_time:.5f} sec.") 
+    
+        faiss.write_index(flat_index, str(output_file))
+      
+    # indexflatl2 in cpu
+    else:
+        start_time = time.time()
+        index.add(dataset[:total_samples, :])
+        delta_time = time.time() - start_time
+        print(f"Creating the tree by {index_type} took {delta_time:.5f} sec")
+        faiss.write_index(index, str(output_file))
+    
