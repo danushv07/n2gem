@@ -6,7 +6,7 @@ import torch
 import numpy as np
 from scipy.spatial.distance import cdist
 
-from aux_funcs import build_tree_gem
+from .aux_funcs import build_tree_gem
 """
 Reliable Fidelity and Diversity Metrics for Generative Models (ICML 2020,
 https://arxiv.org/abs/2002.09797) implemented using faiss similarity search
