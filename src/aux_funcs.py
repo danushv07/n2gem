@@ -7,7 +7,7 @@ import time
 
 
 # the device to use
-DEVICE_STRING = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+DEVICE_STRING = 'cuda' if torch.cuda.is_available() else 'cpu'
 GLOBAL_DEVICE = torch.device(DEVICE_STRING)
 
 
@@ -47,13 +47,14 @@ def build_tree_gem(train_samples, nsamples, index_type='indexflatl2', n_cells=10
     
     print(f"The tree is created on the dataset of shape {train_samples.shape} using {GLOBAL_DEVICE}")
     
-    
+    #dataset = train_samples.to(GLOBAL_DEVICE)
     dataset = train_samples
     total_samples = dataset.shape[0] if (nsamples < 0 or nsamples > dataset.shape[0]) else nsamples
     
     # build the tree
     index = faiss.IndexFlatL2(dataset.shape[-1])
     gpu_resource = faiss.StandardGpuResources() # declare a gpu memory
+    
     
     if ('cuda' in DEVICE_STRING):
         # indexflatl2 in gpu
@@ -114,4 +115,4 @@ def build_tree_gem(train_samples, nsamples, index_type='indexflatl2', n_cells=10
 
     else:
         print(f"Other index types not available")
-    
+        
