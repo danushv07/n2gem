@@ -51,7 +51,7 @@ def index_add(index, dataset, n_samples, index_type, n_cels=100):
                  DESCRIPTION - the index type to choose from faiss ['indexflatl2', 'indexivfflat']
                                 default - 'indexflatl2'
     
-    n_cells : TYPE - integer
+    n_cels : TYPE - integer
               DESCRIPTION - number of voronoi cells
                               default = 100
     
@@ -66,7 +66,7 @@ def index_add(index, dataset, n_samples, index_type, n_cels=100):
     e_time = time.time() - s_time
     
     if not index_type == 'indexflatl2':
-        print(f"Creating the tree by {index_type} using {n_cells} cells took {e_time:.5f} sec.")
+        print(f"Creating the tree by {index_type} using {n_cels} cells took {e_time:.5f} sec.")
     else:
         print(f"Creating the tree by {index_type} took {e_time:.5f} sec")
     
