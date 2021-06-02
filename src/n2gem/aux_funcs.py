@@ -140,7 +140,6 @@ def build_tree_gem(train_samples, nsamples, index_type='indexflatl2', n_cells=10
         
         # indexflatl2 in cpu
         if (index_type == 'indexflatl2'):
-            index_flat_cpu_tree = index_add(index, dataset, total_samples, index_type)
             return index_add(index, dataset, total_samples, index_type)
         
         # indexivflat in cpu
