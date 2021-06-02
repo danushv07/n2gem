@@ -1,20 +1,11 @@
 import faiss
-
 import faiss.contrib.torch_utils
 import torch
-
 import numpy as np
-from scipy.spatial.distance import cdist
-
 from .aux_funcs import build_tree_gem
-"""
-Reliable Fidelity and Diversity Metrics for Generative Models (ICML 2020,
-https://arxiv.org/abs/2002.09797) implemented using faiss similarity search
-"""
-
 
 def gem_density(real_tree, real_samples, gen_samples, nk=5):
-    """ implemeting density from the prcd paper, 2002.09797
+    """ implemetion of  density using faiss tree
     Density counts how many real-sample neighbourhood spheres contain generate samples.
     This implementation uses torch as numerical API
 
@@ -29,7 +20,10 @@ def gem_density(real_tree, real_samples, gen_samples, nk=5):
     output parameters:
     density :: single float within [0, inf)
     """
-
+    # convert tensors 
+    real_samples = torch.from_numpy(real_samples.astype(np.float32))
+    gen_samples = torch.from_numpy(gen_samples.astype(np.float32))
+    
     real_fake_dists = torch.cdist(real_samples, gen_samples)
 
     #do a +1 as faiss query results always include the query object itself
@@ -54,7 +48,7 @@ def gem_density(real_tree, real_samples, gen_samples, nk=5):
 
 
 def gem_coverage(real_tree, real_samples, gen_samples, nk=5):
-    """ implemeting coverage from the prcd paper
+    """ implemeting of coverage using faiss tree
 
     Coverage measures the fraction of real samples whose
     neighbourhoods contain at least one fake sample.
@@ -71,7 +65,11 @@ def gem_coverage(real_tree, real_samples, gen_samples, nk=5):
     output parameters:
     coverage :: single float within [0, 1]
     """
-
+    
+    # convert tensors 
+    real_samples = torch.from_numpy(real_samples.astype(np.float32))
+    gen_samples = torch.from_numpy(gen_samples.astype(np.float32))
+    
     real_fake_dists = torch.cdist(real_samples, gen_samples)
 
     #do a +1 as faiss includes the the query object itself
@@ -89,8 +87,11 @@ def gem_coverage(real_tree, real_samples, gen_samples, nk=5):
 
     return value
 
-def gem_build_density(real_samples, no_samples, gen_samples, nk=5):
-    """ implemeting density from the prcd paper, 2002.09797
+
+def gem_build_density(real_samples, no_samples, gen_samples, index_type, n_cells=100, nk=5):
+    """ implemetation of density 
+    - creates a faiss index tree followed by density computation
+    
     Density counts how many real-sample neighbourhood spheres contain generate samples.
     This implementation uses torch as numerical API
 
@@ -104,7 +105,17 @@ def gem_build_density(real_samples, no_samples, gen_samples, nk=5):
                
     gen_samples  : TYPE - numpy array of N generated samples of dimensionality D,
                     DESCRIPTION - shape should be (N,D)
-
+    
+    index_type : TYPE - string
+                 DESCRIPTION - the index type to choose from faiss ['indexflatl2', 'indexivfflat']
+                                default - 'indexflatl2'
+    
+    n_cells : TYPE - integer
+              DESCRIPTION - number of voronoi cells
+                              default = 100
+    nk : TYPE - integer
+         DESCRIPTION - the value for the nearest neighbours
+         
     output parameters:
     -------------------
     density :: single float within [0, inf)
@@ -115,7 +126,7 @@ def gem_build_density(real_samples, no_samples, gen_samples, nk=5):
     gen_samples = torch.from_numpy(gen_samples.astype(np.float32))
     
     # build the tree
-    real_tree = build_tree_gem(real_samples, no_samples)
+    real_tree = build_tree_gem(real_samples, no_samples, index_type, n_cells)
     
     real_fake_dists = torch.cdist(real_samples, gen_samples)
 
@@ -138,8 +149,11 @@ def gem_build_density(real_samples, no_samples, gen_samples, nk=5):
     print(value)
     return value
 
-def gem_build_coverage(real_samples, no_samples, gen_samples, nk=5):
-    """ implemeting coverage from the prcd paper, 2002.09797
+
+def gem_build_coverage(real_samples, no_samples, gen_samples, index_type, n_cells=100, nk=5):
+    """ implemetation of coverage 
+    - creates a faiss index tree followed by density computation
+    
     Coverage measures the fraction of real samples whose
     neighbourhoods contain at least one fake sample.
     This implementation uses torch as numerical API
@@ -154,7 +168,17 @@ def gem_build_coverage(real_samples, no_samples, gen_samples, nk=5):
                
     gen_samples  : TYPE - numpy array of N generated samples of dimensionality D,
                     DESCRIPTION - shape should be (N,D)
-
+    
+    index_type : TYPE - string
+                 DESCRIPTION - the index type to choose from faiss ['indexflatl2', 'indexivfflat']
+                                default - 'indexflatl2'
+    
+    n_cells : TYPE - integer
+              DESCRIPTION - number of voronoi cells
+                              default = 100
+    nk : TYPE - integer
+         DESCRIPTION - the value for the nearest neighbours
+         
     output parameters:
     coverage :: single float within [0, 1]
     """
@@ -164,7 +188,7 @@ def gem_build_coverage(real_samples, no_samples, gen_samples, nk=5):
     gen_samples = torch.from_numpy(gen_samples.astype(np.float32))
     
     # build the tree
-    real_tree = build_tree_gem(real_samples, no_samples)
+    real_tree = build_tree_gem(real_samples, no_samples, index_type, n_cells)
     
     real_fake_dists = torch.cdist(real_samples, gen_samples)
 
