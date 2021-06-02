@@ -29,6 +29,7 @@ def BlobDataset():
     
     return real.astype(np.float32), gen.astype(np.float32)
 
+
 def test_given_BlobDataset_return_dimesion():
     """
     Test case for the dimensions of the dataset returned from BlobDataset
@@ -37,7 +38,8 @@ def test_given_BlobDataset_return_dimesion():
     real, gen = BlobDataset()
     assert real.shape == (1024, 2)
     assert gen.shape == (256, 2)
-    
+ 
+
 def test_given_BlobDataset_build_tree_gem_with_IndexFlatl2_return_index_distance():
     """
     Test case for build_tree_gem with IndexFlatl2
@@ -55,7 +57,7 @@ def test_given_BlobDataset_build_tree_gem_with_IndexFlatl2_return_index_distance
     index_tree = build_tree_gem(real, real.shape[0])
     D, I = index_tree.search(real[-1:, ...], 5)
     
-    assert isinstance(index_tree, faiss.swigfaiss_avx2.IndexFlatL2)
+    assert isinstance(index_tree, faiss.IndexFlatL2)
     assert isinstance(D, np.ndarray)
     
     assert I[0,0] == 1023
@@ -75,11 +77,83 @@ def test_given_BlobDataset_build_tree_gem_with_IndexIVFFlat_return_index_distanc
     
     """
     real, gen = BlobDataset()
-    index_tree = build_tree_gem(real, real.shape[0], 'indexivfflat')
+    index_tree = build_tree_gem(real,real.shape[0], 'indexivfflat')
     D, I = index_tree.search(real[-1:, ...], 5)
     
-    assert not isinstance(index_tree, faiss.swigfaiss_avx2.IndexFlatL2)
+    assert not isinstance(index_tree, faiss.IndexFlatL2)
     assert isinstance(D, np.ndarray)
     
     assert I[0,0] == 1023
     assert D[0,0] == 0
+   
+
+def test_given_BlobDataset_build_tree_gem_with_IndexFlatl2_return_torch_distance():
+    """
+    Test case for build_tree_gem with IndexFlatl2
+    
+    Expected results:
+    ------------------
+    - the type of index tree should be IndexFlatl2
+    - the type of Distances should be torch.Tensor
+    - the 1st Id should be 1023
+    - the 1st Distance value should be 0
+    
+    
+    """
+    real, gen = BlobDataset()
+    index_tree = build_tree_gem(real, real.shape[0], 'indexflatl2')
+    
+    realn = torch.from_numpy(real).detach().requires_grad_(False)
+    
+    D, I = index_tree.search(realn[-1:, ...], 5)
+    
+    assert isinstance(index_tree, faiss.IndexFlatL2)
+    assert not isinstance(D, np.ndarray)
+    
+    assert I[0,0] == 1023
+    assert D[0,0] == 0
+ 
+
+def test_given_BlobDataset_build_tree_gem_with_IndexFlatl2_compare_distance_IndexFlatL2():
+    """
+    Test case for build_tree_gem with IndexFlatl2
+    
+    Expected results:
+    ------------------
+    - the type of index tree should be IndexFlatl2
+    - the distance should be same
+    """
+    real, gen = BlobDataset()
+    index_tree = build_tree_gem(real, real.shape[0], 'indexflatl2')
+    D, _ = index_tree.search(real[-1:, ...], 5)
+    
+    index_test_tree = faiss.IndexFlatL2(real.shape[-1])
+    index_test_tree.add(real[:real.shape[0], :])
+    D_ip, _ = index_test_tree.search(real[-1:, ...], 5)
+    
+    assert isinstance(index_tree, faiss.IndexFlatL2)
+    assert np.array_equal(D, D_ip)
+
+    
+def test_given_BlobDataset_build_tree_gem_with_IndexFlatl2_compare_distance_IndexIVFFlat():
+    """
+    Test case for build_tree_gem with IndexFlatl2
+    
+    Expected results:
+    ------------------
+    - the type of index tree should be IndexIVFFlat
+    - the distance should be same
+    """
+    real, gen = BlobDataset()
+    index_tree = build_tree_gem(real,real.shape[0], 'indexivfflat', n_cells=2)
+    D, _ = index_tree.search(real[-1:, ...], 5)
+    print("D: ", D)
+
+    inddy = faiss.IndexFlatL2(real.shape[1])
+    index_test_tree = faiss.IndexIVFFlat(inddy, real.shape[-1], 2)
+    index_test_tree.train(real)
+    index_test_tree.add(real)
+    D_ip, _ = index_test_tree.search(real[-1:, ...], 5)
+    print("D_ip: ", D)
+    assert isinstance(index_tree, faiss.IndexIVFFlat)
+    assert np.array_equal(D, D_ip)
