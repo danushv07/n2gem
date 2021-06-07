@@ -9,27 +9,38 @@ from n2gem.metrics import gem_density, gem_coverage, gem_build_density, gem_buil
 from sklearn.datasets import make_blobs
 import prdc
 
-#d =24
-#number_of_samples = 10000
-#xb_real = np.random.random((number_of_samples, d))
-#xq_gen = np.random.random((1000, d))
-#real_samples = torch.from_numpy(xb_real.astype(np.float32))
-#ind = build_tree_gem(real_samples, 2000, 'indexivfflat')
-#gemed_density = gem_build_density(xb_real, 2000, xq_gen)		
 
 def BlobDataset():
     """
     Test dataset created using sklearn make_blobs
     
-    real - numpy array of 1024 samples and 2 dimensions
-    gen - numpy array of 256 samples and 2 dimensions
+    real - numpy array of 256 samples and 12 dimensions
+    gen - numpy array of 128 samples and 12 dimensions
     
     """
-    real, _ =  make_blobs(n_samples=1024, n_features=24, centers=[(0,0), (5,5)], random_state=42)
-    gen, _ = make_blobs(n_samples=256, n_features=24, centers=[(1,1)], random_state=42)
+    real, _ =  make_blobs(n_samples=256, n_features=12, random_state=42) # , centers=[(0,0), (5,5)]
+    gen, _ = make_blobs(n_samples=128, n_features=12, random_state=42) # , centers=[(1,1)]
     
     return real.astype(np.float32), gen.astype(np.float32)
 
+
+def SimpleDataset():
+    """
+    Test dataset to compare prdc & n2gem package
+    
+    real - numpy array of 1024 samples and 3 dimensions
+    gen - numpy array of 1024 samples and 3 dimensions
+    
+    """
+    num_fake_samples = num_real_samples = 1024
+    np.random.seed(num_real_samples+num_fake_samples)
+    feature_dim = 3
+    real = np.random.normal(loc=0.0, scale=1.0,
+                            size=[num_real_samples, feature_dim]).astype(np.float32)
+
+    gen = np.ones((num_fake_samples, feature_dim), dtype=np.float32)
+
+    return real, gen
 
 def CreateTree(real, indtype):
     
@@ -51,9 +62,19 @@ def test_given_BlobDataset_return_dimesion():
     
     """
     real, gen = BlobDataset()
-    assert real.shape == (1024, 12)
-    assert gen.shape == (256, 12)
- 
+    assert real.shape == (256, 12)
+    assert gen.shape == (128, 12)
+
+    
+def test_given_SimpleDataset_return_dimesion():
+    """
+    Test case for the dimensions of the dataset returned from BlobDataset
+    
+    """
+    real, gen = SimpleDataset()
+    assert real.shape == (1024, 3)
+    assert gen.shape == (1024, 3)
+    
 
 def test_given_BlobDataset_build_tree_gem_with_IndexFlatl2_return_index_distance():
     """
@@ -75,7 +96,7 @@ def test_given_BlobDataset_build_tree_gem_with_IndexFlatl2_return_index_distance
     assert isinstance(index_tree, faiss.IndexFlatL2)
     assert isinstance(D, np.ndarray)
     
-    assert I[0,0] == 1023
+    assert I[0,0] == 255
     assert D[0,0] == 0
  
 def test_given_BlobDataset_build_tree_gem_with_IndexIVFFlat_return_index_distance():
@@ -98,7 +119,7 @@ def test_given_BlobDataset_build_tree_gem_with_IndexIVFFlat_return_index_distanc
     assert not isinstance(index_tree, faiss.IndexFlatL2)
     assert isinstance(D, np.ndarray)
     
-    assert I[0,0] == 1023
+    assert I[0,0] == 255
     assert D[0,0] == 0
    
 
@@ -125,7 +146,7 @@ def test_given_BlobDataset_build_tree_gem_with_IndexFlatl2_return_torch_distance
     assert isinstance(index_tree, faiss.IndexFlatL2)
     assert not isinstance(D, np.ndarray)
     
-    assert I[0,0] == 1023
+    assert I[0,0] == 255
     assert D[0,0] == 0
  
 
@@ -174,13 +195,22 @@ def test_given_BlobDataset_build_tree_gem_with_IndexFlatl2_compare_distance_Inde
     assert np.array_equal(D, D_p)
 
     
-def test_given_BlobDataset_real_tree_return_density_from_gem_density():
+def test_given_BlobDataset_return_density_from_gem_density_gem_build_density():
+    """
+    Test case for steps in gem_density using indexflatl2
+    
+    Expected results:
+    ------------------
+    - the value of density from both gem_density & gem_build_density should be same
+    - the shape of tensor in the steps should be true
+    """
     
     real, gen = BlobDataset()
     test_tree = CreateTree(real, 'indexflatl2')
     
     real_gem_density = gem_density(test_tree, real, gen, nk=5)
-
+    real_gem_build_density = gem_build_density(real, real.shape[0], gen, 'indexflatl2')
+    
     real = torch.from_numpy(real)
     gen = torch.from_numpy(gen)
     nk = 5
@@ -192,42 +222,27 @@ def test_given_BlobDataset_real_tree_return_density_from_gem_density():
             real_fake_dists <
             real_maxradii.reshape(*real_maxradii.shape, 1)
     )
-
+    
     expected_density_test_value = density_mask.sum(dim=0).mean()
-
+    
+    assert(real_maxradii.shape[0] == real.shape[0])
+    assert(density_mask.shape == (256, 128))
     assert(real_gem_density == expected_density_test_value)
+    assert(real_gem_build_density == expected_density_test_value)
     assert isinstance (real_gem_density, torch.Tensor)
     assert isinstance (expected_density_test_value, torch.Tensor)
     
 
-def test_given_BlobDataset_real_samples_indexflatl2_return_density_from_gem_build_density():
-    
-    real, gen = BlobDataset()
-    test_tree = CreateTree(real, 'indexflatl2')
-    
-    real_gem_density = gem_build_density(real, real.shape[0], gen, 'indexflatl2')
 
-    real = torch.from_numpy(real)
-    gen = torch.from_numpy(gen)
-    nk = 5
-
-    real_fake_dists = torch.cdist(real, gen)
-    D, _ = test_tree.search(real, nk+1)
-    real_maxradii,_ = torch.max(torch.sqrt(D), axis=1)
-    density_mask = (1. / float(nk)) * (
-            real_fake_dists <
-            real_maxradii.reshape(*real_maxradii.shape, 1)
-    )
-
-    expected_density_test_value = density_mask.sum(dim=0).mean()
-
-    assert(real_gem_density == expected_density_test_value)
-    assert isinstance (real_gem_density, torch.Tensor)
-    assert isinstance (expected_density_test_value, torch.Tensor)
-
-    
 def test_given_BlobDataset_real_samples_indexivfflat_return_density_from_gem_build_density():
+    """
+    Test case for steps in gem_build_density using indexvfflat
     
+    Expected results:
+    ------------------
+    - the value of density from gem_build_density should be same
+    - the shape of tensor in the steps should be true
+    """
     real, gen = BlobDataset()
     test_tree = CreateTree(real, 'indexivfflat')
     
@@ -246,18 +261,28 @@ def test_given_BlobDataset_real_samples_indexivfflat_return_density_from_gem_bui
     )
 
     expected_density_test_value = density_mask.sum(dim=0).mean()
-
+    
+    assert(real_maxradii.shape[0] == real.shape[0])
+    assert(density_mask.shape == (256, 128))
     assert(real_gem_density == expected_density_test_value)
     assert isinstance (real_gem_density, torch.Tensor)
     assert isinstance (expected_density_test_value, torch.Tensor)
  
 
-def test_given_BlobDataset_real_tree_return_coverage_from_gem_coverage():
+def test_given_BlobDataset_real_tree_return_coverage_from_gem_coverage_gem_build_coverage():
+    """
+    Test case for steps in gem_coverage & gem_build_coverage using indexflatl2
     
+    Expected results:
+    ------------------
+    - the value of density from both gem_coverage & gem_build_coverage should be same
+    - the shape of tensor in the steps should be true
+    """
     real, gen = BlobDataset()
     test_tree = CreateTree(real, 'indexflatl2')
     
     real_coverage_density = gem_coverage(test_tree, real, gen, nk=5)
+    real_gem_build_coverage = gem_build_coverage(real, real.shape[0], gen, 'indexflatl2')
 
     real = torch.from_numpy(real)
     gen = torch.from_numpy(gen)
@@ -273,40 +298,24 @@ def test_given_BlobDataset_real_tree_return_coverage_from_gem_coverage():
     )
     expected_coverage_test_value = coverage_mask.to(dtype=torch.float32).mean()
     
-
+    
+    assert(real_maxradii.shape[0] == real.shape[0])
+    assert(coverage_mask.shape[0] == (256))
     assert(real_coverage_density == expected_coverage_test_value)
+    assert(real_gem_build_coverage == expected_coverage_test_value)
     assert isinstance (real_coverage_density, torch.Tensor)
     assert isinstance (expected_coverage_test_value, torch.Tensor)
 
     
-def test_given_BlobDataset_real_samples_indexflatl2_return_coverage_from_gem_build_coverage():
-    
-    real, gen = BlobDataset()
-    test_tree = CreateTree(real, 'indexflatl2')
-    
-    real_gem_coverage = gem_build_coverage(real, real.shape[0], gen, 'indexflatl2')
-
-    real = torch.from_numpy(real)
-    gen = torch.from_numpy(gen)
-    nk = 5
-
-    real_fake_dists = torch.cdist(real, gen)
-    D, _ = test_tree.search(real, nk+1)
-    real_maxradii,_ = torch.max(torch.sqrt(D), axis=1)
-    real_fake_mins, _ = real_fake_dists.min(dim=1)
-
-    coverage_mask = (
-            real_fake_mins < real_maxradii
-    )
-    expected_coverage_test_value = coverage_mask.to(dtype=torch.float32).mean()
-
-    assert(real_gem_coverage == expected_coverage_test_value)
-    assert isinstance (real_gem_coverage, torch.Tensor)
-    assert isinstance (expected_coverage_test_value, torch.Tensor)
-    
-    
 def test_given_BlobDataset_real_samples_indexivfflat_return_coverage_from_gem_build_coverage():
+    """
+    Test case for steps in gem_build_coverage using indexvfflat
     
+    Expected results:
+    ------------------
+    - the value of density from gem_build_coverage should be same
+    - the shape of tensor in the steps should be true
+    """
     real, gen = BlobDataset()
     test_tree = CreateTree(real, 'indexivfflat')
     
@@ -325,49 +334,102 @@ def test_given_BlobDataset_real_samples_indexivfflat_return_coverage_from_gem_bu
             real_fake_mins < real_maxradii
     )
     expected_coverage_test_value = coverage_mask.to(dtype=torch.float32).mean()
-
+    
+    assert(real_maxradii.shape[0] == real.shape[0])
+    assert(coverage_mask.shape[0] == (256))
     assert(real_gem_coverage == expected_coverage_test_value)
     assert isinstance (real_gem_coverage, torch.Tensor)
     assert isinstance (expected_coverage_test_value, torch.Tensor)
 
     
-def test_given_BlobDataset_compare_prdc_density_gem_density():
+def test_given_SimpleDataset_indexflatl2_compare_density_from_prdc_n2gem():
+    """
+    Test case to compare the density value from prdc package &
+    gem_density, gem_build_density using indexflatl2
     
-    real, gen = BlobDataset()
+    Expected results:
+    ------------------
+    - the value of density should be comparable to prdc density
+    
+    """
+    
+    real, gen = SimpleDataset()
     test_tree = CreateTree(real, 'indexflatl2')
     real_gem_density = gem_density(test_tree, real,  gen)
+    real_gem_build_density = gem_build_density(real, real.shape[0], gen, 'indexflatl2')
     
     ref = prdc.compute_prdc(real, gen, 5)
     
-    assert np.allclose(real_gem_density, ref['density'])    
+    assert np.allclose(real_gem_density, ref['density'])  
+    assert np.allclose(real_gem_build_density, ref['density'])  
+ 
 
+def test_given_SimpleDataset_indexflatl2_compare_coverage_from_prdc_n2gem():
+    """
+    Test case to compare the coverage value from prdc package &
+    gem_coverage, gem_build_coverage using indexflatl2
     
-def test_given_BlobDataset_compare_prdc_density_gem_build_density():
+    Expected results:
+    ------------------
+    - the value of coverage should be comparable to prdc coverage
     
-    real, gen = BlobDataset()
-    real_gem_density = gem_build_density(real, real.shape[0], gen, 'indexflatl2')
+    """
     
-    ref = prdc.compute_prdc(real, gen, 5)
-    
-    assert np.allclose(real_gem_density, ref['density'])
-
-    
-def test_given_BlobDataset_compare_prdc_coverage_gem_coverage():
-    
-    real, gen = BlobDataset()
+    real, gen = SimpleDataset()
     test_tree = CreateTree(real, 'indexflatl2')
+    
     real_gem_coverage = gem_coverage(test_tree, real,  gen)
+    real_gem_build_coverage = gem_build_coverage(real, real.shape[0], gen, 'indexflatl2')
     
     ref = prdc.compute_prdc(real, gen, 5)
     
-    assert np.allclose(real_gem_coverage, ref['coverage'])    
+    assert np.allclose(real_gem_coverage, ref['coverage']) 
+    assert np.allclose(real_gem_build_coverage, ref['coverage']) 
+  
 
+def test_given_SimpleDataset_indexivfflat_compare_density_from_prdc_n2gem():
+    """
+    Test case to compare the density value from prdc package &
+    gem_density, gem_build_density using indexivfflat
     
-def test_given_BlobDataset_compare_prdc_coverage_gem_build_coverage():
+    Expected results:
+    ------------------
+    - the value of coverage should be comparable to prdc package
     
-    real, gen = BlobDataset()
-    real_gem_coverage = gem_build_coverage(real, real.shape[0], gen, 'indexflatl2')
+    """
+    
+    real, gen = SimpleDataset()
+    test_tree = CreateTree(real, 'indexivfflat')
+    test_tree.nprobe = 2
+    
+    real_gem_density = gem_density(test_tree, real,  gen)
+    real_gem_build_density = gem_build_density(real, real.shape[0], gen, 'indexivfflat', 2, 2)
     
     ref = prdc.compute_prdc(real, gen, 5)
     
-    assert np.allclose(real_gem_coverage, ref['coverage'])
+    assert np.allclose(real_gem_density, ref['density']) 
+    assert np.allclose(real_gem_build_density, ref['density']) 
+
+
+def test_given_SimpleDataset_indexivfflat_compare_coverage_from_prdc_n2gem():
+    """
+    Test case to compare the coverage value from prdc package &
+    gem_coverage, gem_build_coverage using indexivfflat
+    
+    Expected results:
+    ------------------
+    - the value of coverage should be comparable to prdc package
+    
+    """
+    
+    real, gen = SimpleDataset()
+    test_tree = CreateTree(real, 'indexivfflat')
+    test_tree.nprobe = 2
+    
+    real_gem_coverage = gem_coverage(test_tree, real,  gen)
+    real_gem_build_coverage = gem_build_coverage(real, real.shape[0], gen, 'indexivfflat', 2, 2)
+    
+    ref = prdc.compute_prdc(real, gen, 5)
+    
+    assert np.allclose(real_gem_coverage, ref['coverage']) 
+    assert np.allclose(real_gem_build_coverage, ref['coverage']) 
