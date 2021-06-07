@@ -20,7 +20,7 @@ def gem_density(real_tree, real_samples, gen_samples, nk=5):
     output parameters:
     density :: single float within [0, inf)
     """
-    # convert tensors 
+    # convert to torch tensors 
     real_samples = torch.from_numpy(real_samples.astype(np.float32))
     gen_samples = torch.from_numpy(gen_samples.astype(np.float32))
     
@@ -39,12 +39,9 @@ def gem_density(real_tree, real_samples, gen_samples, nk=5):
             real_maxradii.reshape(*real_maxradii.shape, 1)
     )
 
-    print("[density_]", density_mask.dtype)
-
     value = density_mask.sum(dim=0).mean()
 
     return value
-
 
 
 def gem_coverage(real_tree, real_samples, gen_samples, nk=5):
@@ -88,11 +85,11 @@ def gem_coverage(real_tree, real_samples, gen_samples, nk=5):
     return value
 
 
-def gem_build_density(real_samples, no_samples, gen_samples, index_type, n_cells=100, nk=5):
+def gem_build_density(real_samples, no_samples, gen_samples, index_type, n_cells=100, probe=100, nk=5):
     """ implemetation of density 
     - creates a faiss index tree followed by density computation
     
-    Density counts how many real-sample neighbourhood spheres contain generate samples.
+    Density counts how many real-sample neighbourhood spheres contain generated samples.
     This implementation uses torch as numerical API
 
     input parameters:
@@ -112,7 +109,12 @@ def gem_build_density(real_samples, no_samples, gen_samples, index_type, n_cells
     
     n_cells : TYPE - integer
               DESCRIPTION - number of voronoi cells
-                              default = 100
+              default = 100
+                              
+    probe : TYPE - integer
+            DESCRIPTION - number of voronoi cells to be visited
+            default = 100 
+            
     nk : TYPE - integer
          DESCRIPTION - the value for the nearest neighbours
          
@@ -126,7 +128,7 @@ def gem_build_density(real_samples, no_samples, gen_samples, index_type, n_cells
     gen_samples = torch.from_numpy(gen_samples.astype(np.float32))
     
     # build the tree
-    real_tree = build_tree_gem(real_samples, no_samples, index_type, n_cells)
+    real_tree = build_tree_gem(real_samples, no_samples, index_type, n_cells, probe)
     
     real_fake_dists = torch.cdist(real_samples, gen_samples)
 
@@ -146,11 +148,10 @@ def gem_build_density(real_samples, no_samples, gen_samples, index_type, n_cells
     #print("[density_]", density_mask.dtype)
 
     value = density_mask.sum(dim=0).mean()
-    print(value)
     return value
 
 
-def gem_build_coverage(real_samples, no_samples, gen_samples, index_type, n_cells=100, nk=5):
+def gem_build_coverage(real_samples, no_samples, gen_samples, index_type, n_cells=100, probe=100, nk=5):
     """ implemetation of coverage 
     - creates a faiss index tree followed by density computation
     
@@ -175,7 +176,12 @@ def gem_build_coverage(real_samples, no_samples, gen_samples, index_type, n_cell
     
     n_cells : TYPE - integer
               DESCRIPTION - number of voronoi cells
-                              default = 100
+              default = 100
+              
+    probe : TYPE - integer
+            DESCRIPTION - number of voronoi cells to be visited
+            default = 100
+            
     nk : TYPE - integer
          DESCRIPTION - the value for the nearest neighbours
          
@@ -188,7 +194,7 @@ def gem_build_coverage(real_samples, no_samples, gen_samples, index_type, n_cell
     gen_samples = torch.from_numpy(gen_samples.astype(np.float32))
     
     # build the tree
-    real_tree = build_tree_gem(real_samples, no_samples, index_type, n_cells)
+    real_tree = build_tree_gem(real_samples, no_samples, index_type, n_cells, probe)
     
     real_fake_dists = torch.cdist(real_samples, gen_samples)
 
