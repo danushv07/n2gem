@@ -37,8 +37,9 @@ check_cpu_env:
   before_script:
     - *cpuonly_setup
   script:
-    - python -m pip install faiss-cpu
-    - python ./setup.py .
+    - python -m pip install faiss-cpu numpy
+    - python -m pip install torch==1.8.1+cpu torchvision==0.9.1+cpu torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
+    - python ./setup.py install
     - python -m pytest --co
 
 check_gpu_env:
@@ -49,7 +50,9 @@ check_gpu_env:
   before_script:
     - *cuda_setup
   script:
-    - python -m pip install faiss-gpu
+    - python -m pip install faiss-gpu numpy
+    - pip3 install torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
+    - python ./setup.py install 
     - python -m pytest --co
 
 ## test stage
