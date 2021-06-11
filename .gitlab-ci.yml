@@ -1,0 +1,72 @@
+stages:
+  - build
+  # - test
+  # - integrate
+
+default:
+  image: continuumio/anaconda3:latest
+
+## helpful YAML anchors
+## for details, see https://gitlab.hzdr.de/help/ci/yaml/README.md#yaml-anchors-for-before_script-and-after_script
+
+.cpuonly_setup: &cpuonly_setup
+  - uname -a
+  - env
+  - pwd && ls
+  - which conda && conda --version
+  - which pip && pip --version
+  - apt-get install -q -y gcc g++ python3-dev && apt-get clean
+  - export PIP_CACHE_DIR="/opt/cache/pip" #unclear why to use this, https://beenje.github.io/blog/posts/gitlab-ci-and-conda/
+  # - conda env create -f cpu-environment.yml
+  # - source activate ray_ui-cpu
+  
+.cuda_setup: &cuda_setup
+  - uname -a
+  - env
+  - pwd && ls
+  - which conda && conda --version
+  - which pip && pip --version
+  - apt-get install -q -y gcc g++ python3-dev && apt-get clean
+  - export PIP_CACHE_DIR="/opt/cache/pip" #unclear why to use this, https://beenje.github.io/blog/posts/gitlab-ci-and-conda/
+  # - conda env create -f gpu-environment.yml
+  # - source activate ray_ui-gpu
+
+## build stage
+check_cpu_env:
+  stage: build
+  before_script:
+    - *cpuonly_setup
+  script:
+    - python -m pytest --co
+
+check_gpu_env:
+  stage: build
+  tags:
+    - intel
+    - cuda
+  before_script:
+    - *cuda_setup
+  script:
+    - python -m pytest --co
+
+## test stage
+
+cpu_tests:
+  stage: test
+  before_script:
+    - *cpuonly_setup
+  script:
+    - python -m pytest tests/
+  needs: ["check_cpu_env"]
+
+gpu_tests:
+  stage: test
+  tags:
+    - intel
+    - cuda
+  before_script:
+    - *cuda_setup
+  script:
+    - python -m pytest tests/
+  needs: ["check_gpu_env"]
+
