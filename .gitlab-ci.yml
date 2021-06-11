@@ -17,7 +17,7 @@ default:
   - which pip && pip --version
   - apt-get install -q -y gcc g++ python3-dev && apt-get clean
   - export PIP_CACHE_DIR="/opt/cache/pip" #unclear why to use this, https://beenje.github.io/blog/posts/gitlab-ci-and-conda/
-  # - conda env create -f cpu-environment.yml
+  # - conda env create -f cpu-environment.yml #defines ray_ui-cpu environment
   # - source activate ray_ui-cpu
   
 .cuda_setup: &cuda_setup
@@ -28,7 +28,7 @@ default:
   - which pip && pip --version
   - apt-get install -q -y gcc g++ python3-dev && apt-get clean
   - export PIP_CACHE_DIR="/opt/cache/pip" #unclear why to use this, https://beenje.github.io/blog/posts/gitlab-ci-and-conda/
-  # - conda env create -f gpu-environment.yml
+  # - conda env create -f gpu-environment.yml #defines ray_ui-gpu environment
   # - source activate ray_ui-gpu
 
 ## build stage
@@ -37,6 +37,8 @@ check_cpu_env:
   before_script:
     - *cpuonly_setup
   script:
+    - python -m pip install faiss-cpu
+    - python ./setup.py .
     - python -m pytest --co
 
 check_gpu_env:
@@ -47,6 +49,7 @@ check_gpu_env:
   before_script:
     - *cuda_setup
   script:
+    - python -m pip install faiss-gpu
     - python -m pytest --co
 
 ## test stage
