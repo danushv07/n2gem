@@ -18,7 +18,7 @@ default:
   - apt-get install -q -y gcc g++ python3-dev && apt-get clean
   - export PIP_CACHE_DIR="/opt/cache/pip" #unclear why to use this, https://beenje.github.io/blog/posts/gitlab-ci-and-conda/
   - conda env create -f cpu-env.yml #defines n2gem-cpu environment
-  - source activate ray_ui-cpu
+  - source activate n2gem-cpu
   
 .cuda_setup: &cuda_setup
   - uname -a
@@ -29,7 +29,7 @@ default:
   - apt-get install -q -y gcc g++ python3-dev && apt-get clean
   - export PIP_CACHE_DIR="/opt/cache/pip" #unclear why to use this, https://beenje.github.io/blog/posts/gitlab-ci-and-conda/
   - conda env create -f gpu-env.yml #defines n2gem-gpu environment
-  - source activate ray_ui-gpu
+  - source activate n2gem-gpu
 
 ## build stage
 check_cpu_env:
