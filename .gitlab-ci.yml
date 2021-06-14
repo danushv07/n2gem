@@ -17,8 +17,8 @@ default:
   - which pip && pip --version
   - apt-get install -q -y gcc g++ python3-dev && apt-get clean
   - export PIP_CACHE_DIR="/opt/cache/pip" #unclear why to use this, https://beenje.github.io/blog/posts/gitlab-ci-and-conda/
-  # - conda env create -f cpu-environment.yml #defines ray_ui-cpu environment
-  # - source activate ray_ui-cpu
+  - conda env create -f cpu-env.yml #defines n2gem-cpu environment
+  - source activate n2gem-cpu
   
 .cuda_setup: &cuda_setup
   - uname -a
@@ -28,8 +28,8 @@ default:
   - which pip && pip --version
   - apt-get install -q -y gcc g++ python3-dev && apt-get clean
   - export PIP_CACHE_DIR="/opt/cache/pip" #unclear why to use this, https://beenje.github.io/blog/posts/gitlab-ci-and-conda/
-  # - conda env create -f gpu-environment.yml #defines ray_ui-gpu environment
-  # - source activate ray_ui-gpu
+  - conda env create -f gpu-env.yml #defines n2gem-gpu environment
+  - source activate n2gem-gpu
 
 ## build stage
 check_cpu_env:
@@ -37,8 +37,8 @@ check_cpu_env:
   before_script:
     - *cpuonly_setup
   script:
-    - python -m pip install faiss-cpu numpy
-    - python -m pip install torch==1.8.1+cpu torchvision==0.9.1+cpu torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
+    #- python -m pip install faiss-cpu numpy
+    #- python -m pip install torch==1.8.1+cpu torchvision==0.9.1+cpu torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
     - python ./setup.py install
     - python -m pytest --co
 
@@ -50,8 +50,8 @@ check_gpu_env:
   before_script:
     - *cuda_setup
   script:
-    - python -m pip install faiss-gpu numpy
-    - python -m pip torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
+    #- python -m pip install faiss-gpu numpy
+    #- python -m pip torch==1.8.1+cu111 torchvision==0.9.1+cu111 torchaudio==0.8.1 -f https://download.pytorch.org/whl/torch_stable.html
     - python ./setup.py install 
     - python -m pytest --co
 

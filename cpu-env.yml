@@ -10,5 +10,5 @@ dependencies:
     - scikit-learn=0.23.2
     - pip
     - pip:
-        - faiss-cpu=1.7.1
+        - faiss-cpu==1.7.1
         - prdc

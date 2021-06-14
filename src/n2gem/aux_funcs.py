@@ -1,5 +1,5 @@
 import numpy as np
-import h5py as h5
+#import h5py as h5
 import torch
 import faiss
 import faiss.contrib.torch_utils 
