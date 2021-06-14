@@ -9,5 +9,5 @@ dependencies:
     - numpy=1.19.2
     - pip
     - pip:
-        - faiss-gpu=1.7.1
+        - faiss-gpu==1.7.1
         - prdc
