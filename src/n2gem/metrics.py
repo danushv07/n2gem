@@ -4,6 +4,40 @@ import torch
 import numpy as np
 from .aux_funcs import build_tree_gem
 
+
+def input_conv(real, gen):
+    """
+    Function to check and convert the real and gen samples to torch.Tensor
+    
+    Parameters
+    ----------------
+    real : TYPE - numpy or Torch.Tensor
+           size: N real samples of dimensionality D
+    gen : TYPE - numpy or Torch.Tensor
+           size: N generated samples of dimensionality D
+           
+    Return
+    ----------------
+    real : TYPE - Torch.Tensor of dtype:float32
+           size: N real samples of dimensionality D
+    gen : TYPE - Torch.Tensor of dtype:float32
+           size: N generated samples of dimensionality D
+    """
+    if isinstance(real, torch.Tensor) and isinstance(gen, torch.Tensor):
+        if not (real.dtype == torch.float32) or (real.dtype == torch.float32): 
+            real = real.to(torch.float32)
+            gen = gen.to(torch.float32)
+        
+    elif isinstance(real, np.ndarray) and isinstance(gen, np.ndarray):
+        real = torch.from_numpy(real.astype(np.float32))
+        gen = torch.from_numpy(gen.astype(np.float32))
+        
+    else:
+        print("The given input is neither numpy array or torch.Tensor")
+    
+    return real, gen
+
+
 def gem_density(real_tree, real_samples, gen_samples, nk=5):
     """ implemetion of  density using faiss tree
     Density counts how many real-sample neighbourhood spheres contain generate samples.
@@ -12,17 +46,16 @@ def gem_density(real_tree, real_samples, gen_samples, nk=5):
     input parameters:
     real_tree    :: a faiss.IndexFlatL2 or IndexFlatIP tree
                     that was filled with all real samples
-    real_samples :: numpy array of N real samples of dimensionality D,
-                    shape should be (N,D); data type must be np.float32
-    gen_samples  :: numpy array of N generated samples of dimensionality D,
-                    shape should be (N,D); data type must be np.float32
+    real_samples :: numpy array or Torch.Tensor of N real samples of dimensionality D,
+                    shape should be (N,D)
+    gen_samples  :: numpy array  or Torch.Tensor of N generated samples of dimensionality D,
+                    shape should be (N,D)
 
     output parameters:
     density :: single float within [0, inf)
     """
     # convert to torch tensors 
-    real_samples = torch.from_numpy(real_samples.astype(np.float32))
-    gen_samples = torch.from_numpy(gen_samples.astype(np.float32))
+    real_samples, gen_samples = input_conv(real_samples, gen_samples)
     
     real_fake_dists = torch.cdist(real_samples, gen_samples)
 
@@ -54,18 +87,17 @@ def gem_coverage(real_tree, real_samples, gen_samples, nk=5):
     real_tree    :: a faiss.IndexFlatL2 or IndexFlatIP tree
                     that was filled with all real samples
 
-    real_samples :: numpy array of N real samples of dimensionality D,
+    real_samples :: numpy array or torch.Tensor of N real samples of dimensionality D,
                     shape should be (N,D); data type must be np.float32
-    gen_samples  :: numpy array of N generated samples of dimensionality D,
+    gen_samples  :: numpy array or torch.Tensor of N generated samples of dimensionality D,
                     shape should be (N,D); data type must be np.float32
 
     output parameters:
     coverage :: single float within [0, 1]
     """
     
-    # convert tensors 
-    real_samples = torch.from_numpy(real_samples.astype(np.float32))
-    gen_samples = torch.from_numpy(gen_samples.astype(np.float32))
+    # convert to torch tensors 
+    real_samples, gen_samples = input_conv(real_samples, gen_samples)
     
     real_fake_dists = torch.cdist(real_samples, gen_samples)
 
@@ -94,13 +126,13 @@ def gem_build_density(real_samples, no_samples, gen_samples, index_type, n_cells
 
     input parameters:
     -----------------
-    real_samples : TYPE - numpy array of N real samples of dimensionality D,
+    real_samples : TYPE - numpy array or Torch.tensor of N real samples of dimensionality D,
                     DESCRIPTION - shape should be (N,D)
                     
-    no_samples : nsamples : TYPE - integer
+    no_samples : TYPE - integer
                DESCRIPTION - number of samples to be considered for building the tree
                
-    gen_samples  : TYPE - numpy array of N generated samples of dimensionality D,
+    gen_samples  : TYPE - numpy array or torch.Tensor of N generated samples of dimensionality D,
                     DESCRIPTION - shape should be (N,D)
     
     index_type : TYPE - string
@@ -123,9 +155,8 @@ def gem_build_density(real_samples, no_samples, gen_samples, index_type, n_cells
     density :: single float within [0, inf)
     """
     
-    # convert from numpy to torch tensors
-    real_samples = torch.from_numpy(real_samples.astype(np.float32))
-    gen_samples = torch.from_numpy(gen_samples.astype(np.float32))
+    # convert to torch tensors 
+    real_samples, gen_samples = input_conv(real_samples, gen_samples)
     
     # build the tree
     real_tree = build_tree_gem(real_samples, no_samples, index_type, n_cells, probe)
@@ -189,9 +220,8 @@ def gem_build_coverage(real_samples, no_samples, gen_samples, index_type, n_cell
     coverage :: single float within [0, 1]
     """
     
-    # convert from numpy to torch tensors
-    real_samples = torch.from_numpy(real_samples.astype(np.float32))
-    gen_samples = torch.from_numpy(gen_samples.astype(np.float32))
+    # convert to torch tensors 
+    real_samples, gen_samples = input_conv(real_samples, gen_samples)
     
     # build the tree
     real_tree = build_tree_gem(real_samples, no_samples, index_type, n_cells, probe)

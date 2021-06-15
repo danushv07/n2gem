@@ -118,7 +118,20 @@ def build_tree_gem(train_samples, nsamples, index_type='indexflatl2', n_cells=10
     
     print(f"The tree is created on the dataset of shape {train_samples.shape} using {GLOBAL_DEVICE}")
     
-    dataset = train_samples
+    # check for the given input train_samples
+    # check only if used independently
+    if isinstance(train_samples, torch.Tensor):
+        if not (train_samples.dtype == torch.float32): 
+            train_samples = train_samples.to(torch.float32)
+            
+    elif isinstance(train_samples, np.ndarray):
+        if not (train_samples.dtype == np.float32): 
+            train_samples = train_samples.astype(np.float32)
+            
+    else:
+        print("The given input is neither numpy array or torch.Tensor")
+    
+    dataset = train_samples    
     total_samples = dataset.shape[0] if (nsamples < 0 or nsamples > dataset.shape[0]) else nsamples
     
     # build the tree
