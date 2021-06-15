@@ -15,7 +15,7 @@ setuptools.setup(
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
     install_requires=['numpy','torch>=1.8.1',
-                      'faiss-cpu'],
+                      'faiss-gpu==1.7.1'],
     python_requires=">=3.6",
     classifiers=[
         "Programming Language :: Python :: 3",
