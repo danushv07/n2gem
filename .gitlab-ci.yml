@@ -74,6 +74,7 @@ gpu_tests:
   before_script:
     - *cuda_setup
   script:
+    - module load cuda/10.2
     - python ./setup.py install
     - python -m pytest tests/
   needs: ["check_gpu_env"]
