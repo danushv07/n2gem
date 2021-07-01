@@ -4,7 +4,7 @@ import faiss
 import torch 
 import numpy as np
 import faiss.contrib.torch_utils
-from n2gem.aux_funcs import build_tree_gem
+from n2gem.aux_funcs import gem_build_tree
 from n2gem.metrics import gem_density, gem_coverage, gem_build_density, gem_build_coverage
 from sklearn.datasets import make_blobs
 import prdc
@@ -90,7 +90,7 @@ def test_given_BlobDataset_build_tree_gem_with_IndexFlatl2_return_index_distance
     
     """
     real, gen = BlobDataset()
-    index_tree = build_tree_gem(real, real.shape[0])
+    index_tree = gem_build_tree(real, real.shape[0])
     D, I = index_tree.search(real[-1:, ...], 5)
     
     assert isinstance(index_tree, faiss.IndexFlatL2)
@@ -113,7 +113,7 @@ def test_given_BlobDataset_build_tree_gem_with_IndexIVFFlat_return_index_distanc
     
     """
     real, gen = BlobDataset()
-    index_tree = build_tree_gem(real,real.shape[0], 'indexivfflat')
+    index_tree = gem_build_tree(real,real.shape[0], 'indexivfflat')
     D, I = index_tree.search(real[-1:, ...], 5)
     
     assert not isinstance(index_tree, faiss.IndexFlatL2)
@@ -137,7 +137,7 @@ def test_given_BlobDataset_build_tree_gem_with_IndexFlatl2_return_torch_distance
     
     """
     real, gen = BlobDataset()
-    index_tree = build_tree_gem(real, real.shape[0], 'indexflatl2')
+    index_tree = gem_build_tree(real, real.shape[0], 'indexflatl2')
     
     realn = torch.from_numpy(real).detach().requires_grad_(False)
     
@@ -160,7 +160,7 @@ def test_given_BlobDataset_build_tree_gem_with_IndexFlatl2_compare_distance_Inde
     - the distance should be same
     """
     real, gen = BlobDataset()
-    index_tree = build_tree_gem(real, real.shape[0], 'indexflatl2')
+    index_tree = gem_build_tree(real, real.shape[0], 'indexflatl2')
     D, _ = index_tree.search(real[-1:, ...], 5)
     
     index_test_tree = faiss.IndexFlatL2(real.shape[1])
@@ -181,7 +181,7 @@ def test_given_BlobDataset_build_tree_gem_with_IndexFlatl2_compare_distance_Inde
     - the distance should be same
     """
     real, gen = BlobDataset()
-    index_tree = build_tree_gem(real,real.shape[0], 'indexivfflat', n_cells=2)
+    index_tree = gem_build_tree(real,real.shape[0], 'indexivfflat', n_cells=2)
     D, _ = index_tree.search(real[-1:, ...], 5)
     
 
