@@ -33,7 +33,7 @@ def build_index(index, ngpus):
     return ind_tree
 
 
-def index_add(index, dataset, n_samples, index_type, n_cels=100, pncells=100):
+def index_add(index, dataset, n_samples, index_type, verbose, n_cels=100, pncells=100):
     """
     function to add dataset to the tree
     
@@ -71,14 +71,17 @@ def index_add(index, dataset, n_samples, index_type, n_cels=100, pncells=100):
     
     if not index_type == 'indexflatl2':
         index.nprobe = pncells
-        print(f"Creating the tree by {index_type} using {n_cels} cells took {e_time:.5f} sec.")
+        if verbose==2:
+            print(f"Creating the tree by {index_type} using {n_cels} cells took {e_time:.5f} sec.")
     else:
-        print(f"Creating the tree by {index_type} took {e_time:.5f} sec")
+        if verbose==2:
+            print(f"Creating the tree by {index_type} took {e_time:.5f} sec")
     
     return index
 
                 
-def build_tree_gem(train_samples, nsamples, index_type='indexflatl2', n_cells=100, p_cells=100, seed=42):
+def gem_build_tree(train_samples, nsamples, index_type='indexflatl2', n_cells=100, p_cells=100, seed=42,
+                  verbose=0):
     """
     Build a faiss tree
     
@@ -105,6 +108,12 @@ def build_tree_gem(train_samples, nsamples, index_type='indexflatl2', n_cells=10
            DESCRIPTION - the seed for the generator
                          default = 42
     
+    verbose : TYPE - integer
+           DESCRIPTION - the option to print statements 
+                         default = 0 - print no statements
+                         1 - print information regarding dataset
+                         2 - print the type of tree and time taken
+    
     Return
     ------------------
     tree : TYPE - faiss tree of the specified index type
@@ -115,8 +124,8 @@ def build_tree_gem(train_samples, nsamples, index_type='indexflatl2', n_cells=10
     # get & print the no. of gpus
     ngpus = faiss.get_num_gpus()
     
-    
-    print(f"The tree is created on the dataset of shape {train_samples.shape} using {GLOBAL_DEVICE}")
+    if (verbose==1) or (verbose==2):
+        print(f"The tree is created on the dataset of shape {train_samples.shape} using {GLOBAL_DEVICE}")
     
     # check for the given input train_samples
     # check only if used independently
@@ -144,14 +153,14 @@ def build_tree_gem(train_samples, nsamples, index_type='indexflatl2', n_cells=10
         # indexflatl2 in gpu
         if (index_type == 'indexflatl2'):
             index_tree = build_index(index, ngpus)
-            return index_add(index_tree, dataset, total_samples, index_type)
+            return index_add(index_tree, dataset, total_samples, index_type, verbose)
             
         # indexivfflat in gpu    
         elif (index_type == 'indexivfflat'):
             flat_index = faiss.IndexIVFFlat(index, dataset.shape[-1], n_cells)
             flat_ind_gpu = build_index(flat_index, ngpus)
             flat_ind_gpu.train(dataset)
-            return index_add(flat_ind_gpu, dataset, total_samples, index_type, n_cells, p_cells)
+            return index_add(flat_ind_gpu, dataset, total_samples, index_type, verbose, n_cells, p_cells)
             
         else:
             print(f"Other index type not available")
@@ -161,13 +170,13 @@ def build_tree_gem(train_samples, nsamples, index_type='indexflatl2', n_cells=10
         
         # indexflatl2 in cpu
         if (index_type == 'indexflatl2'):
-            return index_add(index, dataset, total_samples, index_type)
+            return index_add(index, dataset, total_samples, index_type, verbose)
         
         # indexivflat in cpu
         elif (index_type == 'indexivfflat'):
             flat_index = faiss.IndexIVFFlat(index, dataset.shape[-1], n_cells)
             flat_index.train(dataset)
-            return index_add(flat_index, dataset, total_samples, index_type, n_cells, p_cells)
+            return index_add(flat_index, dataset, total_samples, index_type, verbose, n_cells, p_cells)
         
         else:
             print(f"Other index type not available")
