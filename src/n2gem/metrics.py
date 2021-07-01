@@ -2,7 +2,11 @@ import faiss
 import faiss.contrib.torch_utils
 import torch
 import numpy as np
-from .aux_funcs import build_tree_gem
+from .aux_funcs import gem_build_tree
+
+# the device to use
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+#GLOBAL_DEVICE = torch.device(DEVICE_STRING)
 
 
 def input_conv(real, gen):
@@ -24,16 +28,25 @@ def input_conv(real, gen):
            size: N generated samples of dimensionality D
     """
     if isinstance(real, torch.Tensor) and isinstance(gen, torch.Tensor):
-        if not (real.dtype == torch.float32) or (real.dtype == torch.float32): 
+        if real.is_cuda:
+            real.cpu().to(device)
+        else:
+            real.to(device)
+        if gen.is_cuda:
+            gen.cpu().to(device)
+        else:
+            gen.to(device)
+            
+        if not (real.dtype == torch.float32) or (gen.dtype == torch.float32): 
             real = real.to(torch.float32)
             gen = gen.to(torch.float32)
         
     elif isinstance(real, np.ndarray) and isinstance(gen, np.ndarray):
-        real = torch.from_numpy(real.astype(np.float32))
+        real = torch.from_numpy(real.astype(np.float32)).to(device)
         gen = torch.from_numpy(gen.astype(np.float32))
         
     else:
-        print("The given input is neither numpy array or torch.Tensor")
+        print("Both the given inputs should be either numpy array or torch.Tensor")
     
     return real, gen
 
@@ -117,7 +130,8 @@ def gem_coverage(real_tree, real_samples, gen_samples, nk=5):
     return value
 
 
-def gem_build_density(real_samples, no_samples, gen_samples, index_type, n_cells=100, probe=100, nk=5):
+def gem_build_density(real_samples, no_samples, gen_samples, index_type, n_cells=100, probe=100, 
+                      nk=5, verbose=0):
     """ implemetation of density 
     - creates a faiss index tree followed by density computation
     
@@ -150,6 +164,12 @@ def gem_build_density(real_samples, no_samples, gen_samples, index_type, n_cells
     nk : TYPE - integer
          DESCRIPTION - the value for the nearest neighbours
          
+    verbose : TYPE - integer
+           DESCRIPTION - the option to print statements 
+                         default = 0 - print no statements
+                         1 - print information regarding dataset
+                         2 - print the type of tree and time taken
+         
     output parameters:
     -------------------
     density :: single float within [0, inf)
@@ -159,7 +179,7 @@ def gem_build_density(real_samples, no_samples, gen_samples, index_type, n_cells
     real_samples, gen_samples = input_conv(real_samples, gen_samples)
     
     # build the tree
-    real_tree = build_tree_gem(real_samples, no_samples, index_type, n_cells, probe)
+    real_tree = gem_build_tree(real_samples, no_samples, index_type, n_cells, probe, verbose=verbose)
     
     real_fake_dists = torch.cdist(real_samples, gen_samples)
 
@@ -182,7 +202,8 @@ def gem_build_density(real_samples, no_samples, gen_samples, index_type, n_cells
     return value
 
 
-def gem_build_coverage(real_samples, no_samples, gen_samples, index_type, n_cells=100, probe=100, nk=5):
+def gem_build_coverage(real_samples, no_samples, gen_samples, index_type, n_cells=100, probe=100, 
+                       nk=5, verbose=0):
     """ implemetation of coverage 
     - creates a faiss index tree followed by density computation
     
@@ -216,6 +237,12 @@ def gem_build_coverage(real_samples, no_samples, gen_samples, index_type, n_cell
     nk : TYPE - integer
          DESCRIPTION - the value for the nearest neighbours
          
+    verbose : TYPE - integer
+           DESCRIPTION - the option to print statements 
+                         default = 0 - print no statements
+                         1 - print information regarding dataset
+                         2 - print the type of tree and time taken
+         
     output parameters:
     coverage :: single float within [0, 1]
     """
@@ -224,7 +251,7 @@ def gem_build_coverage(real_samples, no_samples, gen_samples, index_type, n_cell
     real_samples, gen_samples = input_conv(real_samples, gen_samples)
     
     # build the tree
-    real_tree = build_tree_gem(real_samples, no_samples, index_type, n_cells, probe)
+    real_tree = gem_build_tree(real_samples, no_samples, index_type, n_cells, probe, verbose=verbose)
     
     real_fake_dists = torch.cdist(real_samples, gen_samples)
 
