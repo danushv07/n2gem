@@ -25,8 +25,10 @@ import click
              help='the size of each batch of validation_images')
 @click.option('e','--epsilon', default=None,
              help='the epsilon value to be considered')
+@click.option('ot','--output_file', 
+              help='the name of the output file')
 def batch_metrics(model_images_path, model_labels_path, vali_images_path, vali_lables_path,
-                 model_batch, vali_batch_size, epsilon):
+                 model_batch, vali_batch_size, epsilon, output_file):
     """
     Function to compute density & coverage between model_dataset & validation_dataset in batches
     of specified size
