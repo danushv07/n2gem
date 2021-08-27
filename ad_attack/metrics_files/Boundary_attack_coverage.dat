@@ -1,0 +1,4 @@
+# Boundary attack with validation_dataset(2100 images)
+# and metrics using model_dataset(67000)
+# Model_dataset & validation set: coverage: 0.14238586
+# Model_dataset & validation adv (2100): coverage: 0.0047275405
