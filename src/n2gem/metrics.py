@@ -34,8 +34,13 @@ def input_conv(real, gen, dev):
         gen = gen.to(torch.float32).to(dev)
         
     elif isinstance(real, np.ndarray) and isinstance(gen, np.ndarray):
+<<<<<<< HEAD
         real = torch.from_numpy(real.astype(np.float32)).to(dev)
         gen = torch.from_numpy(gen.astype(np.float32)).to(dev)
+=======
+        real = torch.from_numpy(real.astype(np.float32)).to(device)
+        gen = torch.from_numpy(gen.astype(np.float32)).to(device)
+>>>>>>> ed775603990c488c82712c78c46e29396f642089
         
     else:
         print("Both the given inputs should be either numpy array or torch.Tensor")
