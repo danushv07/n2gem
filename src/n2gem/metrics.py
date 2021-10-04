@@ -9,7 +9,7 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 #GLOBAL_DEVICE = torch.device(DEVICE_STRING)
 
 
-def input_conv(real, gen):
+def input_conv(real, gen, dev):
     """
     Function to check and convert the real and gen samples to torch.Tensor
     
@@ -19,6 +19,8 @@ def input_conv(real, gen):
            size: N real samples of dimensionality D
     gen : TYPE - numpy or Torch.Tensor
            size: N generated samples of dimensionality D
+    dev : TYPE - string
+            the type of device in use
            
     Return
     ----------------
@@ -27,23 +29,13 @@ def input_conv(real, gen):
     gen : TYPE - Torch.Tensor of dtype:float32
            size: N generated samples of dimensionality D
     """
-    if isinstance(real, torch.Tensor) and isinstance(gen, torch.Tensor):
-        if real.is_cuda:
-            real.cpu().to(device)
-        else:
-            real.to(device)
-        if gen.is_cuda:
-            gen.cpu().to(device)
-        else:
-            gen.to(device)
-            
-        if not (real.dtype == torch.float32) or (gen.dtype == torch.float32): 
-            real = real.to(torch.float32)
-            gen = gen.to(torch.float32)
+    if (isinstance(real, torch.Tensor) and isinstance(gen, torch.Tensor)):
+        real = real.to(torch.float32).to(dev)
+        gen = gen.to(torch.float32).to(dev)
         
     elif isinstance(real, np.ndarray) and isinstance(gen, np.ndarray):
-        real = torch.from_numpy(real.astype(np.float32)).to(device)
-        gen = torch.from_numpy(gen.astype(np.float32))
+        real = torch.from_numpy(real.astype(np.float32)).to(dev)
+        gen = torch.from_numpy(gen.astype(np.float32)).to(dev)
         
     else:
         print("Both the given inputs should be either numpy array or torch.Tensor")
@@ -68,7 +60,9 @@ def gem_density(real_tree, real_samples, gen_samples, nk=5):
     density :: single float within [0, inf)
     """
     # convert to torch tensors 
-    real_samples, gen_samples = input_conv(real_samples, gen_samples)
+    # the device to use
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    real_samples, gen_samples = input_conv(real_samples, gen_samples, device)
     
     real_fake_dists = torch.cdist(real_samples, gen_samples)
 
@@ -110,7 +104,9 @@ def gem_coverage(real_tree, real_samples, gen_samples, nk=5):
     """
     
     # convert to torch tensors 
-    real_samples, gen_samples = input_conv(real_samples, gen_samples)
+    # the device to use
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    real_samples, gen_samples = input_conv(real_samples, gen_samples, device)
     
     real_fake_dists = torch.cdist(real_samples, gen_samples)
 
@@ -176,7 +172,9 @@ def gem_build_density(real_samples, no_samples, gen_samples, index_type, n_cells
     """
     
     # convert to torch tensors 
-    real_samples, gen_samples = input_conv(real_samples, gen_samples)
+    # the device to use
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    real_samples, gen_samples = input_conv(real_samples, gen_samples, device)
     
     # build the tree
     real_tree = gem_build_tree(real_samples, no_samples, index_type, n_cells, probe, verbose=verbose)
@@ -248,7 +246,9 @@ def gem_build_coverage(real_samples, no_samples, gen_samples, index_type, n_cell
     """
     
     # convert to torch tensors 
-    real_samples, gen_samples = input_conv(real_samples, gen_samples)
+    # the device to use
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    real_samples, gen_samples = input_conv(real_samples, gen_samples, device)
     
     # build the tree
     real_tree = gem_build_tree(real_samples, no_samples, index_type, n_cells, probe, verbose=verbose)
