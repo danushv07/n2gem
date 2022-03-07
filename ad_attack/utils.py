@@ -17,6 +17,36 @@ import eagerpy as ep
 import matplotlib.pyplot as plt
 
 
+
+class LoadMed(torch.utils.data.Dataset):
+    """
+    Class to load and form tensor datasets for the MedMNIST datasets
+    
+    overload of the torch.utils.data.Dataset
+    """
+    
+    def __init__(self, imgs, labels, transform):
+        
+        self.images = imgs
+        self.labels = labels
+        self.transform = transform
+        
+        
+    def __len__(self):
+        return self.images.shape[0]
+    
+    def __getitem__(self, idx):
+        
+        img, target = self.images[idx], self.labels[idx].astype(int)
+        img = Image.fromarray(img)
+
+        if self.transform is not None:
+            img = self.transform(img)
+        
+
+        return img, target
+    
+    
 def create_dataset(dataset, vali_split, test_split, train_set=None, test_set=None):
     """Function to split the datasets
     
@@ -100,7 +130,7 @@ def convert_tensor(X_trainset, X_testset, y_trainset, y_testset, X_validation, y
     X_validation = torch.Tensor(X_validation); 
     y_validation = torch.Tensor(y_validation).type(torch.LongTensor).view(-1)
     
-    print(X_trainset.shape, y_trainset.shape)
+    #print(X_trainset.shape, y_trainset.shape)
     # y - label should be longTensor for fastai training
     
     # form model_dataset
@@ -213,6 +243,58 @@ def feature_extractor(image_set, model, f_name, f_needed=True):
         np.savetxt(f_name, features)   
     
     if f_needed: return features
+
+    
+def plot_hist(true_label, pred_label, nclass, f_path, nr=4, nc=5, f_zise=(12,10)):
+    """
+    Function to plot the histogram of true labels vs predicted label
+    customized to plot
+    Parameters
+    --------------
+    true_label: list, the true label for the dataset, 
+                size: no.of samples
+    
+    pred_label: list, the predicted label for each epsilon value
+                size: len(epsilon) x no.of samples
+    
+    nclass: int, the number of classes in the dataset
+    
+    f_path: str, the file path to save the figure
+    nr: int, the number of rows in the subplot, default=4
+    nc: int, the number of rows in the subplot, default=5
+    f_size: tuple, the size of the plot, default=(12,10)
+    
+    Return
+    -------------
+    the histogram plot saved in f_path as .png file
+    """
+    fig, ax = plt.subplots(nr, nc, figsize=f_zise)
+    k = 0
+    a = [16,17,18,19,20]
+    episo = np.arange(0, 1.05, 0.05)
+    episo = np.delete(episo, 18)
+    ticks = np.arange(0,nclass,1).tolist()
+    for i in range(4):
+        for j in range(5):
+
+            ax[i,j].hist(np.array(tru_label).ravel(), bins=np.arange(0,nclass+1,1), align='left', alpha=0.5, color='r', edgecolor='k', 
+                         label='true_label')
+            ax[i,j].hist(pred_label[k], bins=np.arange(0,nclass+1,1), align='left', alpha=0.3, color='b', label='adv_label')
+            ax[i,j].set_title((r'$\epsilon$' + f"={episo[k]:.2f}"))
+            k+= 1
+            if(j!=0):
+                ax[i,j].set_yticks([]) 
+            if(k not in a):
+                ax[i,j].set_xticks([]) 
+            else:
+                ax[i,j].set_xticks(ticks)
+            if(k==a[-1]):
+                ax[i,j].legend(loc=(0.5, 0.7), fontsize='small')    
+    fig.text(0.5, 0, 'class', va='center', rotation='horizontal', fontsize='large')
+    plt.tight_layout()
+    #plt.savefig("trial.png", bbox_inches = 'tight',pad_inches = 0)
+    plt.savefig((f_path+'.png'), bbox_inches = 'tight')  
+    
     
 ### Metrics for FGSM Attack - stats
 
@@ -312,3 +394,82 @@ def dimPlot(images, labels, path):
     embdd = pymde.preserve_neighbors(images, embedding_dim=2, constraint=pymde.Standardized()).embed() 
     #embdd = pymde.preserve_distances(images, embedding_dim=2, constraint=pymde.Standardized()).embed() 
     pymde.plot(embdd, color_by=labels, marker_size=5, background_color='grey', savepath=path)
+    
+# create the plots for boundary attack
+def read_data(f1, sk):
+    """
+    function to read the given file
+    
+    Parameters
+    -----------
+    f1: str, path of the file to be read
+    sk: int, no. of rows to be skipped
+    """
+    df = pd.read_csv(f1, header=None, sep=" ", skiprows=sk)
+    return df.iloc[:,1:].values
+
+def computation(c):
+    """
+    function to compute quantiles and stats on a given matrix
+    
+    Parameters
+    -----------
+    c: np.array, no. of batches x samples
+    """
+    quant = np.quantile(c, [0.25,0.50,0.75], axis=0)
+    stats = np.median(c, axis=0)
+    return quant, stats
+
+def ins(arr, idx, val):
+    return np.insert(arr, 4, val, axis=0)
+
+def bdy_process(f1, prefix=None, f2=None, dataset=False):
+    """
+    Function to read the file and return the quantile and stats for the
+    reference and adv. metrics for the boundary attack plots
+    
+    Parameters
+    ----------------
+    f1: str, the file path before the {batch no} prefix
+    prefix: int, the batch no or size
+    f2: str, the file path after the prefix
+    dataset: bool, to combine f1+f2
+    
+    Return
+    ---------------
+    den_q, adv_den_q, den_s, adv_den_s: refrence & adv. density for all the batches
+    cov_q, adv_cov_q, cov_s, adv_cov_s: refrence & adv. coverage for all the batches
+    """
+    bmodel_validation_den_q = [];bmodel_validation_adv_den_q=[];bmodel_validation_cov_q=[];bmodel_validation_adv_cov_q=[];
+    bmodel_validation_den_s=[];bmodel_validation_adv_den_s=[];bmodel_validation_cov_s=[];bmodel_validation_adv_cov_s=[];
+    if(dataset):
+        data = read_data(f1, 5)
+        d_quant, d_stats = computation(data)
+        return d_quant[:,0], d_quant[:,1], d_stats[0], d_stats[1], d_quant[:,2], d_quant[:,3], d_stats[2], d_stats[3]                  
+    else:
+        for i in prefix:
+            data = read_data((f1+str(i)+f2), 7)
+            d_quant, d_stats = computation(data)
+            # quantile info
+            bmodel_validation_den_q.append(d_quant[:,0])
+            bmodel_validation_adv_den_q.append(d_quant[:,1])
+            bmodel_validation_cov_q.append(d_quant[:,2])
+            bmodel_validation_adv_cov_q.append(d_quant[:,3])
+
+            # stats info
+            bmodel_validation_den_s.append(d_stats[0])
+            bmodel_validation_adv_den_s.append(d_stats[1])
+            bmodel_validation_cov_s.append(d_stats[2])
+            bmodel_validation_adv_cov_s.append(d_stats[3])
+
+        den_q = np.array(bmodel_validation_den_q)
+        adv_den_q = np.array(bmodel_validation_adv_den_q)
+        cov_q = np.array(bmodel_validation_cov_q)
+        adv_cov_q = np.array(bmodel_validation_adv_cov_q)
+        den_s = np.array(bmodel_validation_den_s)
+        adv_den_s = np.array(bmodel_validation_adv_den_s)
+        cov_s = np.array(bmodel_validation_cov_s)
+        adv_cov_s = np.array(bmodel_validation_adv_cov_s)
+    
+    
+        return den_q, adv_den_q, den_s, adv_den_s, cov_q, adv_cov_q, cov_s, adv_cov_s
