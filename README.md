@@ -5,7 +5,9 @@ This library provides evaluation metrics, ```density``` & ```coverage```, for ge
 
 ## Usage
 ### Installation
-- pip install n2gem
+```
+pip install n2gem
+```
 
 ### Required packages
 The package can be used with both faiss-cpu and faiss-gpu. Install ```faiss``` using conda as recommended and follow the instructions given at (https://faiss.ai/). Alternatively, use the ```yml``` files to create the conda environment,
@@ -22,8 +24,8 @@ import torch
 from n2gem.aux_funcs import build_tree_gem
 from n2gem.metrics import gem_density, gem_coverage
 
-real_embedd = torch.rand((1024,12), dtype=torch.float32)
-gen_embedd = torch.rand((1024,12), dtype=torch.float32)
+real_embedd = torch.rand((1024,12))
+gen_embedd = torch.rand((1024,12))
 nearest_k = 3
 
 # build the faiss tree
