@@ -1,6 +1,5 @@
-"""This file contains the helper functions for the notebook 
-    adversarial_attck
-    Author:Danush Kumar Venkatesh
+"""This file contains the helper functions for the notebooks
+    Author:%%
     Created on 29/11/2021
 """
 
@@ -274,8 +273,8 @@ def plot_hist(true_label, pred_label, nclass, f_path, nr=4, nc=5, f_zise=(12,10)
     episo = np.arange(0, 1.05, 0.05)
     episo = np.delete(episo, 18)
     ticks = np.arange(0,nclass,1).tolist()
-    for i in range(4):
-        for j in range(5):
+    for i in range(nr):
+        for j in range(nc):
 
             ax[i,j].hist(np.array(tru_label).ravel(), bins=np.arange(0,nclass+1,1), align='left', alpha=0.5, color='r', edgecolor='k', 
                          label='true_label')
