@@ -1,3 +1,5 @@
+This folder contains the code and related files to the experiments conducted to evaluate the metrics. The models were trained using [fastai](https://github.com/fastai/fastai)```version 2.4```, the boimedical images were from [MedMNIST](https://github.com/MedMNIST/MedMNIST)```version 2.0.1```. The attacks were performed using [foolbox](https://github.com/bethgelab/foolbox)```version 3.3.1``` and [matplotlib](https://matplotlib.org/) ```version 3.3.2``` and [sklearn](https://scikit-learn.org/stable/install.html) ```version 0.23.2``` were used for auxiliary measures.
+
 ## Directory structure
 
 ### Notebooks
